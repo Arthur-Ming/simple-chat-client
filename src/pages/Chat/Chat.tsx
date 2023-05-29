@@ -3,12 +3,6 @@ import MessageInput from './MessageInput';
 import Messages from './Messages';
 import { IMessage } from '../../types';
 
-const getMessages = async () => {
-  const res = await fetch('http://localhost:8000/massages');
-  const data = await res.json();
-  return data;
-};
-
 const postMessage = async (message: string) => {
   await fetch('http://localhost:8000/massages', {
     method: 'POST',
@@ -26,12 +20,26 @@ const Chat = () => {
 
   useEffect(() => {
     const subscribe = async () => {
-      const data = await getMessages();
-      setMessages((s) => [...s, data]);
+      const eventSource = new EventSource(`http://localhost:8000/massages`);
+      eventSource.onopen = function (e) {
+        console.log('Событие: open');
+      };
+      eventSource.onmessage = function (event) {
+        const message = JSON.parse(event.data);
+        setMessages((prev) => [message, ...prev]);
+      };
+      eventSource.onerror = function (e) {
+        console.log('Событие: error');
+        if (this.readyState == EventSource.CONNECTING) {
+          console.log(`Переподключение (readyState=${this.readyState})...`);
+        } else {
+          console.log('Произошла ошибка.');
+        }
+      };
     };
 
     subscribe();
-  }, [messages]);
+  }, []);
 
   return (
     <div className="flex flex-col w-[600px] gap-4 m-auto">
