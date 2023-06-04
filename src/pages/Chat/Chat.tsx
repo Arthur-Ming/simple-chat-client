@@ -3,35 +3,31 @@ import MessageInput from './MessageInput';
 import Messages from './Messages';
 import { IMessage } from '../../types';
 
-const getMessages = async () => {
-  const res = await fetch('http://localhost:8000/massages');
-  const data = await res.json();
-  return data;
-};
-
-const postMessage = async (message: string) => {
-  await fetch('http://localhost:8000/massages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json;charset=utf-8',
-    },
-    body: JSON.stringify({
-      text: message,
-    }),
-  });
-};
-
 const Chat = () => {
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
 
   useEffect(() => {
-    const subscribe = async () => {
-      const data = await getMessages();
-      setMessages((s) => [...s, data]);
-    };
+    setSocket(new WebSocket('ws://localhost:5000'));
+  }, []);
 
-    subscribe();
-  }, [messages]);
+  useEffect(() => {
+    if (socket) {
+      socket.addEventListener('open', () => {
+        console.log('ws');
+      });
+      socket.addEventListener('message', (event) => {
+        const message = JSON.parse(event.data);
+        setMessages((prev) => [message, ...prev]);
+      });
+    }
+  }, [socket]);
+
+  const postMessage = async (message: string) => {
+    if (socket) {
+      socket.send(JSON.stringify({ event: 'message', text: message }));
+    }
+  };
 
   return (
     <div className="flex flex-col w-[600px] gap-4 m-auto">
